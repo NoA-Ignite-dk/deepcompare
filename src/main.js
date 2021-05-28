@@ -1,4 +1,15 @@
-const _ = require('lodash');
+const pick = require('lodash.pick');
+const has = require('lodash.has');
+
+const isEmpty = value => {
+	return (
+		value == null ||
+	  	(typeof value === 'object' && Object.keys(value).length === 0) ||
+	  	(typeof value === 'string' && value.trim().length === 0)
+	)
+  }
+
+const isObject = a => a instanceof Object
 
 /**
  * This method compares the properties of two objects
@@ -12,16 +23,16 @@ const _ = require('lodash');
 const CompareProperties = (firstObject, secondObject) => {
 	let differences = [];
 	let common = {};
-	_.forOwn(firstObject, (value, key) => {
-		if (!_.has(secondObject, key)) {
+	Object.keys(firstObject).forEach((key) => {
+		if (!has(secondObject, key)) {
 			differences.push(key);
 		} else {
 			common[key] = true;
 		}
 	});
 
-	_.forOwn(secondObject, (value, key) => {
-		if (!_.has(firstObject, key)) {
+	Object.keys(secondObject).forEach((key) => {
+		if (!has(firstObject, key)) {
 			differences.push(key);
 		} else {
 			common[key] = true;
@@ -30,7 +41,7 @@ const CompareProperties = (firstObject, secondObject) => {
 
 	return {
 		differences: differences,
-		common: _.keys(common)
+		common: Object.keys(common)
 	}
 };
 
@@ -56,13 +67,13 @@ const CompareArrays = (firstArray, secondArray) => {
 
 	let ok = true;
 	// process arrays
-	_.forEach(firstArray, (firstElement, index) => {
-		if (_.isArray(firstElement) && _.isArray(secondArray[index])) {
+	firstArray.forEach((firstElement, index) => {
+		if (Array.isArray(firstElement) && Array.isArray(secondArray[index])) {
 			if (!CompareArrays(firstElement, secondArray[index])) {
 				ok = false;
 				return;
 			}
-		} else if (_.isObject(firstElement) && _.isObject(secondArray[index])) {
+		} else if (isObject(firstElement) && isObject(secondArray[index])) {
 			if (JSON.stringify(firstElement) !== JSON.stringify(secondArray[index])) {
 				ok = false;
 				return;
@@ -92,47 +103,47 @@ const CompareArrays = (firstArray, secondArray) => {
 const CompareValuesWithConflicts = (firstObject, secondObject, pathOfConflict) => {
 	let conflicts = [];
 
-	if (_.keys(firstObject).length !== _.keys(secondObject).length) {
+	if (Object.keys(firstObject).length !== Object.keys(secondObject).length) {
 		let result = CompareProperties(firstObject, secondObject);
 		if (result && result.differences) {
 			conflicts = conflicts.concat(result.differences);
 		}
 
 		if (result && result.common) {
-			firstObject = _.pick(firstObject, result.common);
-			secondObject = _.pick(secondObject, result.common);
+			firstObject = pick(firstObject, result.common);
+			secondObject = pick(secondObject, result.common);
 		}
 	}
 
-	_.forOwn(firstObject, (value, key) => {
+	Object.keys(firstObject).forEach((key) => {
 		let conflictPath = pathOfConflict;
-		if (_.has(firstObject, key) && _.has(secondObject, key)) {
+		if (has(firstObject, key) && has(secondObject, key)) {
 
 			// process nested object
-			if (_.isObject(firstObject[key]) && !_.isArray(firstObject[key])) {
+			if (isObject(firstObject[key]) && !Array.isArray(firstObject[key])) {
 				let currentPath = conflictPath;
-				if (_.isEmpty(conflictPath)) {
+				if (isEmpty(conflictPath)) {
 					currentPath = key.toString();
 				} else {
 					currentPath += '.' + key.toString();
 				}
 				let foundConflicts = CompareValuesWithConflicts(firstObject[key], secondObject[key], currentPath);
-				if (!_.isEmpty(foundConflicts)) {
+				if (!isEmpty(foundConflicts)) {
 					conflicts = conflicts.concat(foundConflicts);
 				}
 			}
 
 			// process array
-			else if (_.isArray(firstObject[key])) {
-				if (!_.isArray(secondObject[key])) {
-					if (_.isEmpty(conflictPath)) {
+			else if (Array.isArray(firstObject[key])) {
+				if (!Array.isArray(secondObject[key])) {
+					if (isEmpty(conflictPath)) {
 						conflictPath = key.toString();
 					} else {
 						conflictPath += '.' + key.toString();
 					}
 				} else {
 					if (!CompareArrays(firstObject[key], secondObject[key])) {
-						if (_.isEmpty(conflictPath)) {
+						if (isEmpty(conflictPath)) {
 							conflictPath = key.toString();
 						} else {
 							conflictPath += '.' + key.toString();
@@ -144,7 +155,7 @@ const CompareValuesWithConflicts = (firstObject, secondObject, pathOfConflict) =
 			// process simple object
 			else {
 				if (typeof firstObject[key] === typeof secondObject[key] && firstObject[key] !== secondObject[key]) {
-					if (_.isEmpty(conflictPath)) {
+					if (isEmpty(conflictPath)) {
 						conflictPath = key.toString();
 					} else {
 						conflictPath += '.' + key.toString();
@@ -156,7 +167,7 @@ const CompareValuesWithConflicts = (firstObject, secondObject, pathOfConflict) =
 		}
 
 		// add conflict path to array if different than original path
-		if (!_.isEmpty(conflictPath) && conflictPath !== pathOfConflict) {
+		if (!isEmpty(conflictPath) && conflictPath !== pathOfConflict) {
 			conflicts.push(conflictPath);
 		}
 	});
